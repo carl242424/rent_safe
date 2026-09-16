@@ -1,0 +1,293 @@
+---
+import '../../styles/app.css';
+
+const token = Astro.cookies.get('token');
+if (!token) {
+  return Astro.redirect('/');
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cars | RentSafe</title>
+    <style>
+      :root { --bg:#f8fafc; --card:#fff; --muted:#64748b; --primary:#0f766e; --text:#0f172a; --border:#e2e8f0; --danger:#dc2626; --warning:#f59e0b; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family:Arial, sans-serif; background:var(--bg); color: var(--text); }
+      .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+      .sidebar { background:#0f172a; color:#fff; padding:24px 18px; position:sticky; top:0; height:100vh; }
+      .brand { display:flex; align-items:center; gap:10px; font-size:1.45rem; font-weight:700; margin-bottom:24px; }
+      .logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#0f766e,#14b8a6); display:grid; place-items:center; }
+      nav { display:grid; gap:10px; }
+      nav a { color:#dbeafe; text-decoration:none; padding:12px 14px; border-radius:10px; }
+      nav a:hover, nav a.is-active { background:#1e293b; }
+      .main { padding:24px; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:12px; }
+      .topbar-left { display:flex; align-items:center; gap:12px; }
+      .title { font-size:1.75rem; font-weight:700; }
+      .actions { display:flex; gap:10px; }
+      .btn { border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700; }
+      .btn-primary { background:var(--primary); color:#fff; }
+      .btn-danger { background:#ef4444; color:#fff; }
+      .btn-secondary { background:#e2e8f0; color:var(--text); }
+      .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; }
+      .card { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; }
+      .car-image { width:100%; height:160px; object-fit:cover; border-radius:12px; background:#eef2ff; }
+      .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:0.75rem; font-weight:700; }
+      .muted { color:var(--muted); }
+      form { display:grid; gap:12px; }
+      .two-col { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+      input, select { width:100%; border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:1rem; }
+      textarea { width:100%; min-height:90px; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+      .hidden { display:none; }
+      .image-preview { margin-top:4px; display:none; }
+      .image-preview img { width:100%; max-height:180px; object-fit:cover; border-radius:12px; }
+      .mobile-toggle { display:none; border:1px solid var(--border); background:#fff; color:var(--text); border-radius:10px; width:44px; height:44px; font-size:1.2rem; cursor:pointer; }
+      .sidebar-overlay { display:none; }
+      @media (max-width: 880px) {
+        .layout { grid-template-columns:1fr; }
+        .sidebar-overlay { display:block; position:fixed; inset:0; background:rgba(15,23,42,0.45); opacity:0; pointer-events:none; transition:opacity 0.2s ease; z-index:30; }
+        .sidebar-overlay.is-visible { opacity:1; pointer-events:auto; }
+        .sidebar { position:fixed; top:0; left:0; height:100vh; width:260px; transform:translateX(-110%); transition:transform 0.2s ease; z-index:40; }
+        .layout.sidebar-open .sidebar { transform:translateX(0); }
+        .mobile-toggle { display:inline-flex; align-items:center; justify-content:center; }
+      }
+      @media (max-width: 520px) { .main { padding:16px; } .topbar { flex-direction:column; align-items:flex-start; } .two-col { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="layout" id="app-layout">
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <aside class="sidebar">
+        <div class="brand"><div class="logo">R</div> RentSafe</div>
+        <nav>
+          <a href="/dashboard"><i class="nav-icon" data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+          <a class="is-active" href="/dashboard/cars"><i class="nav-icon" data-lucide="car-front"></i><span>Cars</span></a>
+          <a href="/dashboard/rentals"><i class="nav-icon" data-lucide="calendar-days"></i><span>Rentals</span></a>
+          <a href="/dashboard/renters"><i class="nav-icon" data-lucide="users"></i><span>Renters</span></a>
+          <a href="/dashboard/blacklist"><i class="nav-icon" data-lucide="shield-alert"></i><span>Blacklist</span></a>
+        </nav>
+        <button class="sidebar-logout" id="logout-btn" type="button"><i class="nav-icon" data-lucide="log-out"></i><span>Logout</span></button>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="topbar-left">
+            <button class="mobile-toggle" id="sidebar-toggle" aria-label="Toggle navigation">☰</button>
+            <div class="title">Cars</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-secondary" id="reload-btn">Refresh</button>
+            <button class="btn btn-primary" id="show-form-btn">Add Car</button>
+          </div>
+        </div>
+
+        <section id="car-form-wrap" class="card hidden" style="margin-bottom:16px;">
+          <h3>Add car</h3>
+          <form id="car-form">
+            <div class="two-col">
+              <input name="name" placeholder="Car name" required />
+              <input name="plateNumber" placeholder="Plate number" required />
+            </div>
+            <div class="two-col">
+              <input name="color" placeholder="Color" required />
+              <input name="year" type="number" placeholder="Year" required />
+            </div>
+            <div class="two-col">
+              <input name="dailyRate" type="number" step="0.01" placeholder="Daily rate" required />
+              <input name="weeklyRate" type="number" step="0.01" placeholder="Weekly rate" />
+            </div>
+            <div class="two-col">
+              <input name="hourlyRate" type="number" step="0.01" placeholder="Hourly rate" />
+              <select name="status">
+                <option value="Available">Available</option>
+                <option value="Rented">Rented</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <input type="file" name="image" id="car-image-file" accept="image/*" />
+            <div id="car-image-preview" class="image-preview"></div>
+            <button class="btn btn-primary" type="submit">Save Car</button>
+          </form>
+        </section>
+
+        <section id="cars-grid" class="grid"></section>
+        <div class="lightbox" id="car-lightbox" hidden role="dialog" aria-modal="true" aria-label="Car image preview">
+          <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close image preview">×</button>
+          <img id="lightbox-image" alt="Full car preview" />
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { initSidebar } from '../../lib/sidebar.js';
+
+      const API = `${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}`;
+      initSidebar(API);
+      const grid = document.getElementById('cars-grid');
+      const formWrap = document.getElementById('car-form-wrap');
+      const form = document.getElementById('car-form');
+      const showButton = document.getElementById('show-form-btn');
+      const reloadButton = document.getElementById('reload-btn');
+      const imageFileInput = document.getElementById('car-image-file');
+      const imagePreview = document.getElementById('car-image-preview');
+      const layout = document.getElementById('app-layout');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const lightbox = document.getElementById('car-lightbox');
+      const lightboxImage = document.getElementById('lightbox-image');
+
+      const closeSidebar = () => {
+        layout.classList.remove('sidebar-open');
+        sidebarOverlay.classList.remove('is-visible');
+      };
+
+      const setImagePreview = (src) => {
+        if (!src) {
+          imagePreview.style.display = 'none';
+          imagePreview.innerHTML = '';
+          imagePreview.dataset.image = '';
+          return;
+        }
+
+        imagePreview.style.display = 'block';
+        imagePreview.dataset.image = src;
+        imagePreview.innerHTML = `<img src="${src}" alt="Car preview" />`;
+      };
+
+      imageFileInput.addEventListener('change', async (event) => {
+        const [file] = event.target.files || [];
+        if (!file) {
+          setImagePreview('');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => setImagePreview(String(reader.result));
+        reader.readAsDataURL(file);
+      });
+
+      async function fetchJson(path, options = {}) {
+        const response = await fetch(`${API}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Request failed');
+        return data;
+      }
+
+      function renderCars(cars) {
+        if (!cars.length) {
+          grid.innerHTML = '<div class="card"><p class="muted">No cars have been added yet.</p></div>';
+          return;
+        }
+
+        grid.innerHTML = cars.map((car) => `
+          <article class="card car-card">
+            <button class="image-button" data-preview="${car.image || ''}" aria-label="View full image of ${car.name}">
+              <img class="car-image" src="${car.image || 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="#e2e8e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="32" fill="#47736d" font-family="Arial">No image</text></svg>')}" alt="${car.name}" />
+            </button>
+            <div class="car-card-body"><h3>${car.name}</h3><p class="muted">${car.plateNumber}</p><div class="car-meta"><strong>₱${Number(car.dailyRate || 0).toLocaleString()} <small>/ day</small></strong><span class="pill">${car.status}</span></div><div class="car-actions"><button class="btn btn-secondary" data-edit="${car._id}">Edit</button><button class="btn btn-danger" data-delete="${car._id}">Delete</button></div></div>
+          </article>
+        `).join('');
+
+        document.querySelectorAll('[data-preview]').forEach((button) => button.addEventListener('click', () => {
+          if (!button.dataset.preview) return;
+          lightboxImage.src = button.dataset.preview;
+          lightbox.hidden = false;
+        }));
+
+        document.querySelectorAll('[data-delete]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const id = button.dataset.delete;
+            if (!confirm('Delete this car?')) return;
+            await fetchJson(`/api/cars/${id}`, { method: 'DELETE' });
+            loadCars();
+          });
+        });
+
+        document.querySelectorAll('[data-edit]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const car = cars.find((item) => item._id === button.dataset.edit);
+            if (!car) return;
+            formWrap.classList.remove('hidden');
+            Object.entries(car).forEach(([key, value]) => {
+              const input = form.elements[key];
+              if (input) input.value = value || '';
+            });
+            if (car.image) {
+              setImagePreview(car.image);
+            } else {
+              setImagePreview('');
+            }
+            form.dataset.editId = car._id;
+          });
+        });
+      }
+
+      async function loadCars() {
+        try {
+          const cars = await fetchJson('/api/cars');
+          renderCars(cars);
+        } catch (error) {
+          grid.innerHTML = `<div class="card"><p class="muted">${error.message}</p></div>`;
+        }
+      }
+
+      sidebarToggle.addEventListener('click', () => {
+        const isOpen = layout.classList.toggle('sidebar-open');
+        sidebarOverlay.classList.toggle('is-visible', isOpen);
+      });
+
+      sidebarOverlay.addEventListener('click', () => {
+        layout.classList.remove('sidebar-open');
+        sidebarOverlay.classList.remove('is-visible');
+      });
+
+      showButton.addEventListener('click', () => {
+        formWrap.classList.toggle('hidden');
+        form.reset();
+        setImagePreview('');
+        delete form.dataset.editId;
+      });
+
+      reloadButton.addEventListener('click', loadCars);
+      document.getElementById('lightbox-close').addEventListener('click', () => { lightbox.hidden = true; lightboxImage.removeAttribute('src'); });
+      lightbox.addEventListener('click', (event) => { if (event.target === lightbox) document.getElementById('lightbox-close').click(); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !lightbox.hidden) document.getElementById('lightbox-close').click(); });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        if (imagePreview.dataset.image) {
+          payload.image = imagePreview.dataset.image;
+        } else {
+          payload.image = '';
+        }
+
+        try {
+          if (form.dataset.editId) {
+            await fetchJson(`/api/cars/${form.dataset.editId}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload),
+            });
+          } else {
+            await fetchJson('/api/cars', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+          }
+          form.reset();
+          setImagePreview('');
+          formWrap.classList.add('hidden');
+          delete form.dataset.editId;
+          loadCars();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      loadCars();
+    </script>
+  </body>
+</html>

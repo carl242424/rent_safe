@@ -1,0 +1,60 @@
+---
+import '../../styles/app.css';
+const token = Astro.cookies.get('token');
+if (!token) return Astro.redirect('/');
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Renters | RentSafe</title></head>
+  <body>
+    <div class="layout" id="app-layout">
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <aside class="sidebar">
+        <div class="brand"><div class="logo">R</div> RentSafe</div>
+        <nav>
+          <a href="/dashboard"><i class="nav-icon" data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+          <a href="/dashboard/cars"><i class="nav-icon" data-lucide="car-front"></i><span>Cars</span></a>
+          <a href="/dashboard/rentals"><i class="nav-icon" data-lucide="calendar-days"></i><span>Rentals</span></a>
+          <a class="is-active" href="/dashboard/renters"><i class="nav-icon" data-lucide="users"></i><span>Renters</span></a>
+          <a href="/dashboard/blacklist"><i class="nav-icon" data-lucide="shield-alert"></i><span>Blacklist</span></a>
+        </nav>
+        <button class="sidebar-logout" id="logout-btn" type="button"><i class="nav-icon" data-lucide="log-out"></i><span>Logout</span></button>
+      </aside>
+      <main class="main">
+        <div class="topbar"><div class="topbar-left"><button class="mobile-toggle" id="sidebar-toggle" aria-label="Toggle navigation">☰</button><div class="title">Renters</div></div><button class="btn btn-primary" id="show-form-btn">Add Renter</button></div>
+        <section class="card form-panel" id="form-wrap" hidden>
+          <div class="section-heading"><div><span class="eyebrow">Renter profile</span><h2>Add renter</h2></div><button class="icon-button" id="close-form-btn" type="button" aria-label="Close form">×</button></div>
+          <form id="renter-form">
+            <div class="two-col"><label>Full name<input name="fullName" placeholder="Full name" required /></label><label>Mobile number<input name="phone" placeholder="Mobile number" required /></label></div>
+            <div class="two-col"><label>Facebook profile<input name="facebook" placeholder="Profile link or username" /></label><label>Valid ID<input name="validId" placeholder="ID information" /></label></div>
+            <label>Address<textarea name="address" placeholder="Complete address" required></textarea></label>
+            <div class="form-actions"><button class="btn btn-secondary" id="cancel-form-btn" type="button">Cancel</button><button class="btn btn-primary" type="submit">Save Renter</button></div>
+          </form>
+        </section>
+        <section class="card table-card"><div class="section-heading"><div><span class="eyebrow">Customer directory</span><h2>Renters</h2></div><span class="record-count" id="record-count"></span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Renter</th><th>Contact</th><th>Address</th><th>Facebook</th><th>Record status</th></tr></thead><tbody id="renter-body"></tbody></table></div><div class="pagination" id="renter-pagination"></div></section>
+      </main>
+    </div>
+    <script type="module">
+      import { initSidebar } from '../../lib/sidebar.js';
+      import { createPagination } from '../../lib/pagination.js';
+      const API = `${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}`;
+      initSidebar(API);
+      const formWrap = document.getElementById('form-wrap');
+      const form = document.getElementById('renter-form');
+      const body = document.getElementById('renter-body');
+      const pagination = document.getElementById('renter-pagination');
+      let renters = [];
+      let renterPage = 1;
+      async function fetchJson(path, options = {}) { const response = await fetch(`${API}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Request failed'); return data; }
+      const escapeHtml = (value = '') => String(value).replace(/[&<>'\"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+      function renderRenters(items) { document.getElementById('record-count').textContent = `${items.length} renter${items.length === 1 ? '' : 's'}`; if (!items.length) { body.innerHTML = '<tr><td colspan="5" class="empty">No renters have been added yet.</td></tr>'; pagination.innerHTML = ''; return; } const pageItems = items.slice((renterPage - 1) * 5, renterPage * 5); body.innerHTML = pageItems.map((renter) => `<tr><td><strong>${escapeHtml(renter.fullName)}</strong><small>${escapeHtml(renter.validId || 'No ID recorded')}</small></td><td>${escapeHtml(renter.phone)}</td><td class="table-secondary">${escapeHtml(renter.address)}</td><td>${escapeHtml(renter.facebook || '—')}</td><td><span class="pill">Active</span></td></tr>`).join(''); createPagination(pagination, items.length, renterPage, (page) => { renterPage = page; renderRenters(renters); }); }
+      async function loadRenters() { try { renters = await fetchJson('/api/renters'); renderRenters(renters); } catch (error) { body.innerHTML = `<tr><td colspan="5" class="empty">${escapeHtml(error.message)}</td></tr>`; } }
+      document.getElementById('show-form-btn').addEventListener('click', () => { formWrap.hidden = false; form.reset(); formWrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+      document.getElementById('close-form-btn').addEventListener('click', () => { formWrap.hidden = true; });
+      document.getElementById('cancel-form-btn').addEventListener('click', () => { formWrap.hidden = true; });
+      form.addEventListener('submit', async (event) => { event.preventDefault(); try { await fetchJson('/api/renters', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form).entries())) }); form.reset(); formWrap.hidden = true; loadRenters(); } catch (error) { alert(error.message); } });
+      document.getElementById('sidebar-toggle').addEventListener('click', () => { const layout = document.getElementById('app-layout'); const open = layout.classList.toggle('sidebar-open'); document.getElementById('sidebar-overlay').classList.toggle('is-visible', open); });
+      document.getElementById('sidebar-overlay').addEventListener('click', () => { document.getElementById('app-layout').classList.remove('sidebar-open'); document.getElementById('sidebar-overlay').classList.remove('is-visible'); });
+      loadRenters();
+    </script>
+  </body>
+</html>

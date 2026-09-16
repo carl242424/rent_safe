@@ -1,0 +1,106 @@
+---
+import DashboardShell from '../components/DashboardShell.astro';
+
+const token = Astro.cookies.get('token');
+if (!token) {
+  return Astro.redirect('/');
+}
+---
+
+<DashboardShell title="Dashboard" description="A clear view of your rental operation today." activePage="dashboard">
+        <section class="stats" id="stats-grid"></section>
+
+        <section class="recent card">
+          <h2>Recent Rentals</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Renter</th>
+                  <th>Vehicle</th>
+                  <th>Duration</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recent-body"></tbody>
+            </table>
+            <div class="pagination" id="recent-pagination"></div>
+          </div>
+        </section>
+    <script type="module">
+      import { createPagination } from '../lib/pagination.js';
+      const API = `${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}`;
+      const statsGrid = document.getElementById('stats-grid');
+      const recentBody = document.getElementById('recent-body');
+      const recentPagination = document.getElementById('recent-pagination');
+      let recentRentals = [];
+      let recentPage = 1;
+
+      async function fetchJson(path) {
+        const response = await fetch(`${API}${path}`, { credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Request failed');
+        return data;
+      }
+
+      function renderStats(data) {
+        const cards = [
+          ['Total Cars', data.totalCars, '🚗'],
+          ['Available Cars', data.availableCars, '✅'],
+          ['Currently Rented', data.currentlyRented, '📌'],
+          ['Active Rentals', data.activeRentals, '📝'],
+          ['Blacklisted Renters', data.blacklistedRenters, '⚠️'],
+          ['Total Revenue', `₱${Number(data.totalRevenue || 0).toLocaleString()}`, '💰'],
+        ];
+
+        statsGrid.innerHTML = cards.map(([label, value, icon]) => `
+          <div class="card stat-card">
+            <div class="stat-header">
+              <div class="stat-label">${label}</div>
+              <div class="stat-icon">${icon}</div>
+            </div>
+            <div class="stat-value">${value}</div>
+          </div>
+        `).join('');
+      }
+
+      function renderRecent(list) {
+        if (!list.length) {
+          recentBody.innerHTML = '<tr><td colspan="6" class="empty">No rentals recorded yet.</td></tr>';
+          recentPagination.innerHTML = '';
+          return;
+        }
+
+        recentRentals = list;
+        const pageItems = list.slice((recentPage - 1) * 5, recentPage * 5);
+        recentBody.innerHTML = pageItems.map((item) => `
+          <tr>
+            <td>${item.renter}</td>
+            <td>${item.vehicle}</td>
+            <td>${item.duration} days</td>
+            <td>₱${Number(item.totalAmount || 0).toLocaleString()}</td>
+            <td>${item.paymentMethod || 'Cash'}</td>
+            <td>${item.status}</td>
+          </tr>
+        `).join('');
+        createPagination(recentPagination, list.length, recentPage, (page) => { recentPage = page; renderRecent(recentRentals); });
+      }
+
+      async function loadDashboard() {
+        try {
+          const [stats, rentals] = await Promise.all([
+            fetchJson('/api/dashboard/stats'),
+            fetchJson('/api/dashboard/recent-rentals')
+          ]);
+          renderStats(stats);
+          renderRecent(rentals);
+        } catch (error) {
+          statsGrid.innerHTML = `<div class="card"><div class="empty">Unable to load dashboard: ${error.message}</div></div>`;
+        }
+      }
+
+      loadDashboard();
+    </script>
+</DashboardShell>

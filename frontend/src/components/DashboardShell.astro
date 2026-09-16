@@ -1,0 +1,98 @@
+---
+import '../styles/app.css';
+import { initSidebar } from '../lib/sidebar.js';
+
+const { title, description, activePage } = Astro.props;
+
+const navigation = [
+  { href: '/dashboard', label: 'Dashboard', icon: 'layout-dashboard', key: 'dashboard' },
+  { href: '/dashboard/cars', label: 'Cars', icon: 'car-front', key: 'cars' },
+  { href: '/dashboard/rentals', label: 'Rentals', icon: 'calendar-days', key: 'rentals' },
+  { href: '/dashboard/renters', label: 'Renters', icon: 'users', key: 'renters' },
+  { href: '/dashboard/blacklist', label: 'Blacklist', icon: 'shield-alert', key: 'blacklist' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} | RentSafe</title>
+  </head>
+  <body>
+    <div class="app-layout" id="app-layout">
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <aside class="sidebar" aria-label="Main navigation">
+        <div class="brand">
+          <div class="logo">R</div>
+          <div><strong>RentSafe</strong><span>Rental operations</span></div>
+        </div>
+        <div class="nav-label">Workspace</div>
+        <nav>
+          {navigation.map((item) => (
+            <a class:list={{ 'is-active': activePage === item.key }} href={item.href}>
+              <i class="nav-icon" data-lucide={item.icon} aria-label={`${item.label} icon`}></i>
+              <span>{item.label}</span>
+            </a>
+          ))}
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          <span>System online</span>
+        </div>
+        <button class="sidebar-logout" id="logout-btn" type="button">
+          <i class="nav-icon" data-lucide="log-out"></i>
+          <span>Logout</span>
+        </button>
+      </aside>
+
+      <main class="main">
+        <header class="page-header">
+          <div class="header-title">
+            <button class="mobile-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+            <div>
+              <div class="breadcrumb">Workspace <span>/</span> {title}</div>
+              <h1>{title}</h1>
+              {description && <p>{description}</p>}
+            </div>
+          </div>
+          <div class="header-actions">
+            <slot name="actions" />
+            <div class="user-menu">
+              <div class="avatar">A</div>
+              <div class="user-copy"><strong>Administrator</strong><span>Admin account</span></div>
+            </div>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { initSidebar } from '../lib/sidebar.js';
+
+      const layout = document.getElementById('app-layout');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const closeSidebar = () => {
+        layout?.classList.remove('sidebar-open');
+        sidebarOverlay?.classList.remove('is-visible');
+        sidebarToggle?.setAttribute('aria-expanded', 'false');
+      };
+
+      sidebarToggle?.addEventListener('click', () => {
+        const isOpen = layout?.classList.toggle('sidebar-open');
+        sidebarOverlay?.classList.toggle('is-visible', Boolean(isOpen));
+        sidebarToggle?.setAttribute('aria-expanded', String(Boolean(isOpen)));
+      });
+      sidebarOverlay?.addEventListener('click', closeSidebar);
+      document.querySelectorAll('.sidebar nav a').forEach((link) => link.addEventListener('click', closeSidebar));
+
+      initSidebar(`${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}`);
+    </script>
+  </body>
+</html>

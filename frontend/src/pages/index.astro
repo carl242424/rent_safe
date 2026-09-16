@@ -1,0 +1,162 @@
+---
+const token = Astro.cookies.get('token');
+if (token) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RentSafe Admin Login</title>
+    <style>
+      :root {
+        --card: #ffffff;
+        --muted: #6d8180;
+        --primary: #087f78;
+        --primary-dark: #06665f;
+        --danger: #c2413d;
+        --text: #173333;
+        --border: #dce7e5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f4f7f8;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        color: var(--text);
+      }
+      .shell {
+        width: min(100%, 420px);
+        padding: 24px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 16px 36px rgba(21, 55, 54, .08);
+        padding: 30px 26px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .logo {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--primary);
+        color: white;
+        font-weight: 700;
+      }
+      h1 { margin: 0; font-size: 1.7rem; }
+      form { display: grid; gap: 14px; }
+      label { display: grid; gap: 8px; font-size: 0.92rem; font-weight: 600; }
+      input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 1rem;
+      }
+      input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(8,127,120,.12); }
+      .password-wrap { position: relative; }
+      .password-wrap input { padding-right: 44px; }
+      .toggle-btn {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        border: 0; background: transparent; cursor: pointer; color: var(--muted); font-weight: 700;
+      }
+      button {
+        border: 0; border-radius: 8px; padding: 13px 18px; background: var(--primary); color: white; font-weight: 700; cursor: pointer;
+      }
+      button:hover { background: var(--primary-dark); }
+      .error { background: #fef2f2; color: var(--danger); padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; border: 1px solid #fecaca; display: none; }
+      .error.visible { display: block; }
+      .helper { font-size: 0.82rem; color: var(--muted); }
+      .meta { margin-top: 16px; text-align: center; font-size: 0.8rem; color: var(--muted); }
+      @media (max-width: 480px) {
+        .shell { padding: 16px; }
+        .card { padding: 20px 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="card">
+        <div class="brand">
+          <div class="logo">R</div>
+          <h1>RentSafe</h1>
+        </div>
+
+        <form id="login-form">
+          <label>
+            Email or Username
+            <input type="text" id="identifier" name="identifier" placeholder="admin@rentsafe.com" required />
+          </label>
+
+          <label>
+            Password
+            <div class="password-wrap">
+              <input type="password" id="password" name="password" placeholder="Enter password" required />
+              <button type="button" class="toggle-btn" id="toggle-password" aria-label="Show password">Show</button>
+            </div>
+          </label>
+
+          <button type="submit" id="login-button">Log in</button>
+          <div class="error" id="login-error"></div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module">
+      const form = document.getElementById('login-form');
+      const errorBox = document.getElementById('login-error');
+      const loginButton = document.getElementById('login-button');
+      const passwordInput = document.getElementById('password');
+      const toggleButton = document.getElementById('toggle-password');
+
+      toggleButton.addEventListener('click', () => {
+        const isHidden = passwordInput.type === 'password';
+        passwordInput.type = isHidden ? 'text' : 'password';
+        toggleButton.textContent = isHidden ? 'Hide' : 'Show';
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorBox.textContent = '';
+        errorBox.classList.remove('visible');
+        loginButton.disabled = true;
+        loginButton.textContent = 'Logging in...';
+
+        try {
+          const identifier = document.getElementById('identifier').value.trim();
+          const password = passwordInput.value;
+          const response = await fetch(`${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/login`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password }),
+          });
+
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Login failed');
+          window.location.href = '/dashboard';
+        } catch (error) {
+          errorBox.textContent = error.message;
+          errorBox.classList.add('visible');
+        } finally {
+          loginButton.disabled = false;
+          loginButton.textContent = 'Log in';
+        }
+      });
+    </script>
+  </body>
+</html>

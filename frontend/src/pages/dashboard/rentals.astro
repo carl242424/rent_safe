@@ -1,0 +1,349 @@
+---
+import '../../styles/app.css';
+
+const token = Astro.cookies.get('token');
+if (!token) {
+  return Astro.redirect('/');
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rentals | RentSafe</title>
+    <style>
+      :root { --bg:#f8fafc; --card:#fff; --muted:#64748b; --primary:#0f766e; --text:#0f172a; --border:#e2e8f0; --danger:#dc2626; --success:#16a34a; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family:Arial, sans-serif; background:var(--bg); color: var(--text); }
+      .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+      .sidebar { background:#0f172a; color:#fff; padding:24px 18px; position:sticky; top:0; height:100vh; }
+      .brand { display:flex; align-items:center; gap:10px; font-size:1.45rem; font-weight:700; margin-bottom:24px; }
+      .logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#0f766e,#14b8a6); display:grid; place-items:center; }
+      nav { display:grid; gap:10px; }
+      nav a { color:#dbeafe; text-decoration:none; padding:12px 14px; border-radius:10px; }
+      nav a:hover, nav a.is-active { background:#1e293b; }
+      .main { padding:24px; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:12px; }
+      .topbar-left { display:flex; align-items:center; gap:12px; }
+      .title { font-size:1.75rem; font-weight:700; }
+      .btn { border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700; }
+      .btn-primary { background:var(--primary); color:#fff; }
+      .btn-secondary { background:#e2e8f0; color:var(--text); }
+      .btn-danger { background:#ef4444; color:#fff; }
+      .card { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; }
+      form { display:grid; gap:12px; }
+      .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      input, select { width:100%; border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:1rem; }
+      .warning { background:#fff7ed; color:#9a5b00; padding:12px; border-radius:10px; border:1px solid #fed7aa; }
+      table { width:100%; border-collapse:collapse; }
+      th, td { padding:10px; border-bottom:1px solid var(--border); text-align:left; }
+      .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:0.75rem; }
+      .muted { color:var(--muted); }
+      .mobile-toggle { display:none; border:1px solid var(--border); background:#fff; color:var(--text); border-radius:10px; width:44px; height:44px; font-size:1.2rem; cursor:pointer; }
+      .sidebar-overlay { display:none; }
+      @media (max-width: 880px) {
+        .layout { grid-template-columns:1fr; }
+        .sidebar-overlay { display:block; position:fixed; inset:0; background:rgba(15,23,42,0.45); opacity:0; pointer-events:none; transition:opacity 0.2s ease; z-index:30; }
+        .sidebar-overlay.is-visible { opacity:1; pointer-events:auto; }
+        .sidebar { position:fixed; top:0; left:0; height:100vh; width:260px; transform:translateX(-110%); transition:transform 0.2s ease; z-index:40; }
+        .layout.sidebar-open .sidebar { transform:translateX(0); }
+        .mobile-toggle { display:inline-flex; align-items:center; justify-content:center; }
+      }
+      @media (max-width: 520px) { .main { padding:16px; } .topbar { flex-direction:column; align-items:flex-start; } .two-col { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="layout" id="app-layout">
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <aside class="sidebar">
+        <div class="brand"><div class="logo">R</div> RentSafe</div>
+        <nav>
+          <a href="/dashboard"><i class="nav-icon" data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+          <a href="/dashboard/cars"><i class="nav-icon" data-lucide="car-front"></i><span>Cars</span></a>
+          <a class="is-active" href="/dashboard/rentals"><i class="nav-icon" data-lucide="calendar-days"></i><span>Rentals</span></a>
+          <a href="/dashboard/renters"><i class="nav-icon" data-lucide="users"></i><span>Renters</span></a>
+          <a href="/dashboard/blacklist"><i class="nav-icon" data-lucide="shield-alert"></i><span>Blacklist</span></a>
+        </nav>
+        <button class="sidebar-logout" id="logout-btn" type="button"><i class="nav-icon" data-lucide="log-out"></i><span>Logout</span></button>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="topbar-left">
+            <button class="mobile-toggle" id="sidebar-toggle" aria-label="Toggle navigation">☰</button>
+            <div class="title">Rentals</div>
+          </div>
+          <button class="btn btn-primary" id="reload-btn">Refresh</button>
+        </div>
+
+        <section class="card" style="margin-bottom:18px;">
+          <h3>New Rental</h3>
+          <form id="rental-form">
+            <div class="two-col">
+              <select id="renterSelect" name="renterId" required></select>
+              <select id="carSelect" name="carId" required></select>
+            </div>
+            <div class="two-col">
+              <input name="startDate" type="datetime-local" required />
+              <input name="returnDate" type="datetime-local" required />
+            </div>
+            <p class="date-conflict" id="date-conflict" role="alert"></p>
+            <div class="two-col">
+              <select id="regionSelect" name="region" required>
+                <option value="">Select region</option>
+              </select>
+              <select id="provinceSelect" name="province" required>
+                <option value="">Select province</option>
+              </select>
+            </div>
+            <div class="two-col">
+              <select id="citySelect" name="city" required>
+                <option value="">Select city/municipality</option>
+              </select>
+              <input id="barangayInput" name="barangay" placeholder="Barangay / Street (optional)" />
+            </div>
+            <div id="blacklist-warning" class="warning" style="display:none;"></div>
+            <button class="btn btn-primary" type="submit">Create Rental</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <table>
+            <thead>
+              <tr><th>Renter</th><th>Vehicle</th><th>Dates</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="rental-body"></tbody>
+          </table>
+            <div class="pagination" id="rental-pagination"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { initSidebar } from '../../lib/sidebar.js';
+      import { createPagination } from '../../lib/pagination.js';
+
+      const API = `${import.meta.env.PUBLIC_API_URL || 'http://localhost:5000'}`;
+      initSidebar(API);
+      const renterSelect = document.getElementById('renterSelect');
+      const carSelect = document.getElementById('carSelect');
+      const regionSelect = document.getElementById('regionSelect');
+      const provinceSelect = document.getElementById('provinceSelect');
+      const citySelect = document.getElementById('citySelect');
+      const rentalBody = document.getElementById('rental-body');
+      const form = document.getElementById('rental-form');
+      const warning = document.getElementById('blacklist-warning');
+      const startDateInput = form.elements.startDate;
+      const returnDateInput = form.elements.returnDate;
+      const dateConflict = document.getElementById('date-conflict');
+      const pagination = document.getElementById('rental-pagination');
+      const submitButton = form.querySelector('button[type="submit"]');
+      let rentals = [];
+      let rentalPage = 1;
+      let availableCars = [];
+      const layout = document.getElementById('app-layout');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+      const addressData = {
+        regions: [],
+        provinces: {},
+        cities: {},
+      };
+
+      function updateOptions(select, options, placeholder) {
+        select.innerHTML = `<option value="">${placeholder}</option>` + options.map((item) => `<option value="${item.value}">${item.label}</option>`).join('');
+      }
+
+      async function loadAddressData() {
+        const { regions, provinces, cities } = await import('../../data/philippines-address.json');
+
+        addressData.regions = regions.map((region) => ({ value: region.region_code, label: region.region_name }));
+        addressData.provinces = provinces.reduce((acc, province) => {
+          const key = province.region_code;
+          acc[key] = acc[key] || [];
+          acc[key].push({ value: province.province_code, label: province.province_name });
+          return acc;
+        }, {});
+        addressData.cities = cities.reduce((acc, city) => {
+          const key = city.province_code;
+          acc[key] = acc[key] || [];
+          acc[key].push({ value: city.city_code, label: city.city_name });
+          return acc;
+        }, {});
+
+        updateOptions(regionSelect, addressData.regions, 'Select region');
+
+        regionSelect.addEventListener('change', () => {
+          const selectedRegion = regionSelect.value;
+          if (!selectedRegion) {
+            updateOptions(provinceSelect, [], 'Select province');
+            updateOptions(citySelect, [], 'Select city/municipality');
+            return;
+          }
+
+          updateOptions(provinceSelect, addressData.provinces[selectedRegion] || [], 'Select province');
+          citySelect.innerHTML = '<option value="">Select city/municipality</option>';
+        });
+
+        provinceSelect.addEventListener('change', () => {
+          const selectedProvince = provinceSelect.value;
+          if (!selectedProvince) {
+            updateOptions(citySelect, [], 'Select city/municipality');
+            return;
+          }
+
+          updateOptions(citySelect, addressData.cities[selectedProvince] || [], 'Select city/municipality');
+        });
+      }
+
+      async function fetchJson(path, options = {}) {
+        const response = await fetch(`${API}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Request failed');
+        return data;
+      }
+
+      async function loadLookups() {
+        const [renters, cars] = await Promise.all([
+          fetchJson('/api/renters'),
+          fetchJson('/api/cars')
+        ]);
+
+        renterSelect.innerHTML = '<option value="">Select renter</option>' + renters.map((r) => `<option value="${r._id}">${r.fullName}</option>`).join('');
+        availableCars = cars.filter((car) => !['Maintenance', 'Inactive'].includes(car.status));
+        carSelect.innerHTML = '<option value="">Select car</option>' + availableCars.map((car) => `<option value="${car._id}">${car.name} (${car.plateNumber})${car.status === 'Rented' ? ' - currently rented' : ''}</option>`).join('');
+        updateDateAvailability();
+      }
+
+      async function loadRentals() {
+        rentals = await fetchJson('/api/rentals');
+        updateDateAvailability();
+        renderRentals();
+      }
+
+      function renderRentals() {
+        const pageItems = rentals.slice((rentalPage - 1) * 5, rentalPage * 5);
+        rentalBody.innerHTML = pageItems.map((r) => `
+          <tr>
+            <td>${r.renterId?.fullName || 'Unknown'}</td>
+            <td>${r.carId?.name || 'Unknown'}</td>
+            <td>${new Date(r.startDate).toLocaleDateString()} → ${new Date(r.returnDate).toLocaleDateString()}</td>
+            <td>₱${Number(r.totalAmount || 0).toLocaleString()}</td>
+            <td><span class="pill">${r.status}</span></td>
+            <td>
+              <button class="btn secondary" data-complete="${r._id}">Complete</button>
+              <button class="btn danger" data-cancel="${r._id}">Cancel</button>
+            </td>
+          </tr>
+        `).join('');
+        createPagination(pagination, rentals.length, rentalPage, (page) => { rentalPage = page; renderRentals(); });
+
+        document.querySelectorAll('[data-complete]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            await fetchJson(`/api/rentals/${button.dataset.complete}/complete`, { method: 'POST' });
+            loadRentals();
+          });
+        });
+
+        document.querySelectorAll('[data-cancel]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            await fetchJson(`/api/rentals/${button.dataset.cancel}/cancel`, { method: 'POST' });
+            loadRentals();
+          });
+        });
+      }
+
+      function updateDateAvailability() {
+        const selectedCar = carSelect.value;
+        const start = new Date(startDateInput.value);
+        const returnDate = new Date(returnDateInput.value);
+        dateConflict.classList.remove('is-visible');
+        dateConflict.textContent = '';
+        returnDateInput.disabled = false;
+        submitButton.disabled = false;
+        returnDateInput.removeAttribute('max');
+        returnDateInput.min = startDateInput.value || '';
+        if (!selectedCar || Number.isNaN(start.getTime())) return;
+
+        const conflicts = rentals.filter((rental) => rental.carId?._id === selectedCar && ['Reserved', 'Active'].includes(rental.status));
+        const nextConflict = conflicts.find((rental) => new Date(rental.startDate) > start);
+        const activeConflict = conflicts.find((rental) => new Date(rental.startDate) < (returnDateInput.value ? returnDate : new Date(start.getTime() + 1)) && new Date(rental.returnDate) > start);
+        if (nextConflict) returnDateInput.max = new Date(nextConflict.startDate).toISOString().slice(0, 16);
+        if (activeConflict || (returnDateInput.value && conflicts.some((rental) => new Date(rental.startDate) < returnDate && new Date(rental.returnDate) > start))) {
+          dateConflict.textContent = `This car is already booked during the selected dates. Choose a range before ${new Date(activeConflict?.startDate || conflicts[0].startDate).toLocaleString()} or select another car.`;
+          dateConflict.classList.add('is-visible');
+          submitButton.disabled = true;
+          returnDateInput.disabled = Boolean(activeConflict);
+        }
+      }
+
+      carSelect.addEventListener('change', updateDateAvailability);
+      startDateInput.addEventListener('change', updateDateAvailability);
+      returnDateInput.addEventListener('change', updateDateAvailability);
+
+      renterSelect.addEventListener('change', async () => {
+        const renterId = renterSelect.value;
+        if (!renterId) return;
+        const renter = await fetchJson(`/api/renters/${renterId}`);
+        const blacklist = await fetchJson(`/api/blacklist/check?name=${encodeURIComponent(renter.fullName)}&facebook=${encodeURIComponent(renter.facebook || '')}&phone=${encodeURIComponent(renter.phone || '')}`);
+        if (blacklist.length) {
+          warning.style.display = 'block';
+          warning.innerHTML = blacklist.map((item) => `<div><strong>⚠️ Potential Blacklist Match</strong><br/>Name: ${item.renterName}<br/>Facebook: ${item.facebook || 'N/A'}<br/>Reason: ${item.reason}<br/>Notes: ${item.notes || 'N/A'}</div>`).join('<br/>');
+        } else {
+          warning.style.display = 'none';
+          warning.innerHTML = '';
+        }
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        const locationParts = [
+          payload.region ? (addressData.regions.find((item) => item.value === payload.region)?.label || '') : '',
+          payload.province ? (addressData.provinces[payload.region]?.find((item) => item.value === payload.province)?.label || '') : '',
+          payload.city ? (addressData.cities[payload.province]?.find((item) => item.value === payload.city)?.label || '') : '',
+          payload.barangay || ''
+        ].filter(Boolean);
+        payload.location = locationParts.join(', ');
+        delete payload.region;
+        delete payload.province;
+        delete payload.city;
+        try {
+          await fetchJson('/api/rentals', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          form.reset();
+          regionSelect.innerHTML = '<option value="">Select region</option>';
+          provinceSelect.innerHTML = '<option value="">Select province</option>';
+          citySelect.innerHTML = '<option value="">Select city/municipality</option>';
+          loadAddressData();
+          loadLookups();
+          loadRentals();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      document.getElementById('reload-btn').addEventListener('click', () => {
+        loadLookups();
+        loadRentals();
+      });
+
+      sidebarToggle.addEventListener('click', () => {
+        const isOpen = layout.classList.toggle('sidebar-open');
+        sidebarOverlay.classList.toggle('is-visible', isOpen);
+      });
+
+      sidebarOverlay.addEventListener('click', () => {
+        layout.classList.remove('sidebar-open');
+        sidebarOverlay.classList.remove('is-visible');
+      });
+
+      loadAddressData();
+      loadLookups();
+      loadRentals();
+    </script>
+  </body>
+</html>
