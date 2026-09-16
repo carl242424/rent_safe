@@ -23,6 +23,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.get('/', (req, res) => {
+  res.json({
+    service: 'RentSafe API',
+    status: 'ok',
+    health: '/api/health',
+  });
+});
+
 const seedDefaultAdmin = async () => {
   const existing = await User.findOne({ role: 'admin' });
   if (!existing) {
