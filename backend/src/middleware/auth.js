@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
 const isAuthenticated = async (req, res, next) => {
   try {
@@ -9,7 +10,7 @@ const isAuthenticated = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-secret');
+    const jwtSecret = process.env.JWT_SECRET || (isProduction ? null : 'dev-secret');
     if (!jwtSecret) return res.status(500).json({ message: 'Authentication is not configured' });
     const decoded = jwt.verify(token, jwtSecret);
     const user = await User.findById(decoded.id).select('-passwordHash');

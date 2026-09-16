@@ -1,9 +1,10 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
 const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET && isProduction) {
     throw new Error('JWT_SECRET is required in production');
   }
   return process.env.JWT_SECRET || 'dev-secret';
@@ -33,8 +34,8 @@ const login = async (req, res) => {
     const token = createToken(user);
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -47,8 +48,8 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
   });
   return res.json({ message: 'Logged out successfully' });
 };
