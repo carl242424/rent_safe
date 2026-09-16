@@ -1,10 +1,5 @@
 ---
 import '../../styles/app.css';
-
-const token = Astro.cookies.get('token');
-if (!token) {
-  return Astro.redirect('/');
-}
 ---
 
 <html lang="en">

@@ -1,10 +1,5 @@
 ---
 import DashboardShell from '../components/DashboardShell.astro';
-
-const token = Astro.cookies.get('token');
-if (!token) {
-  return Astro.redirect('/');
-}
 ---
 
 <DashboardShell title="Dashboard" description="A clear view of your rental operation today." activePage="dashboard">
