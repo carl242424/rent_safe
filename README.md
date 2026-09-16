@@ -29,14 +29,17 @@ RentSafe is a car rental management system with a single admin role, JWT auth, a
 
 ## Environment Variables
 
-Backend `.env`:
+Backend `.env` (local development):
 
 ```bash
+NODE_ENV=development
 PORT=5000
 MONGODB_URI=mongodb://127.0.0.1:27017/rentsafe
 JWT_SECRET=replace_with_secure_secret
-CLIENT_URL=http://localhost:3000
-NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@rentsafe.com
+ADMIN_PASSWORD=replace_with_a_strong_password
 ```
 
 Frontend `.env`:
@@ -81,24 +84,34 @@ Backend runs on:
 
 ## Production Deployment
 
-### Vercel Configuration (Frontend)
+### Render Deployment
 
-- Import the frontend folder into Vercel.
-- Set the environment variable:
-  - `PUBLIC_API_URL=https://your-render-backend-url`
-- Build command: `npm run build`
-- Output directory: `.vercel/output`
+The repository includes `render.yaml` for two Render Web Services. The frontend uses Astro SSR (`output: 'server'`), so it is deployed as a Node Web Service rather than a Static Site.
 
-### Render Configuration (Backend)
+Frontend service (`rentsafe-frontend`):
 
-- Import the backend folder into Render.
-- Set environment variables:
-  - `PORT=5000`
-  - `MONGODB_URI=your_mongodb_atlas_uri`
-  - `JWT_SECRET=your_secure_secret`
-  - `CLIENT_URL=https://your-frontend-url`
-  - `NODE_ENV=production`
-- Start command: `node src/server.js`
+- Root directory: `frontend`
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Environment variable: `PUBLIC_API_URL=https://rentsafe-backend.onrender.com`
+
+Backend service (`rentsafe-backend`):
+
+- Root directory: `backend`
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check: `/api/health`
+- Environment variables: `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_URL`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`
+
+Do not commit `.env` files. Enter the real values in Render's service Environment settings. Render provides `PORT` automatically; the backend listens on `process.env.PORT`.
+
+MongoDB Atlas setup:
+
+1. Create an Atlas cluster and a least-privilege database user.
+2. Add the Render outbound network access required by your Atlas plan, or use Atlas's temporary `0.0.0.0/0` rule only when appropriate for your deployment security policy.
+3. Copy the Atlas connection string into the backend Render service's `MONGODB_URI` variable. Never add it to frontend variables.
+
+After both services are created, set the exact generated URLs in `FRONTEND_URL` and `PUBLIC_API_URL`, then redeploy both services.
 
 ## MVP Workflow
 

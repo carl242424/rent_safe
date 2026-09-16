@@ -8,6 +8,9 @@ const connectDB = async () => {
 
   try {
     if (!mongoUri) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('MONGODB_URI is required in production');
+      }
       memoryServer = await MongoMemoryServer.create();
       const uri = memoryServer.getUri();
       await mongoose.connect(uri, { dbName: 'rentsafe' });

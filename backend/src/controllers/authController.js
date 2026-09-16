@@ -2,8 +2,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required in production');
+  }
+  return process.env.JWT_SECRET || 'dev-secret';
+};
+
 const createToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'dev-secret', {
+  jwt.sign({ id: user._id, role: user.role }, getJwtSecret(), {
     expiresIn: '7d',
   });
 
